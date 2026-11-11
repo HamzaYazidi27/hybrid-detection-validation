@@ -1,0 +1,9 @@
+# expect-error: path traversal or absolute path is not allowed
+# MALICIOUS FIXTURE: executor script escaping scenarios/scripts/.
+schema_version: "1.0"
+id: SCN-AD-902
+executor:
+  type: powershell
+  script: scenarios/scripts/../../../Windows/System32/evil.ps1
+  timeout: PT1M
+  elevation_required: true

@@ -1,0 +1,9 @@
+# expect-error: licence mismatch: table SigninLogs
+# EVASIVE FIXTURE: claims no licence while depending on interactive sign-in logs (P1/P2 export).
+schema_version: "1.0"
+id: DET-AD-904
+data_sources:
+  - table: SigninLogs
+    collection: entra_diagnostic_settings
+prerequisites:
+  licensing: [none]

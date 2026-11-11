@@ -1,0 +1,11 @@
+# expect-error: 'lab' was expected
+# MALICIOUS FIXTURE: scenario that targets a production environment.
+schema_version: "1.0"
+id: SCN-AD-904
+safety:
+  impact: low
+  destructive: false
+  reversible: true
+  requires_manual_approval: false
+  allowed_environments: [production]
+  preconditions: ["None - this must be rejected by the schema."]

@@ -1,0 +1,71 @@
+# SCHEMA FIXTURE - exercises the scenario schema in CI.
+# NOT executed. The referenced scripts do not exist yet (Phase 4).
+schema_version: "1.0"
+id: SCN-ENTRA-001
+title: Add a short-lived client secret to a lab application
+description: >-
+  Adds a client secret (1 hour expiry) to a dedicated lab application registration through
+  Microsoft Graph. The secret display name carries the run marker. The secret is removed
+  during cleanup and its value is never logged or persisted.
+version: 0.1.0
+status: draft
+author: HDV project
+created: "2026-11-11"
+modified: "2026-11-11"
+domain: entra_id
+mitre:
+  techniques:
+    - id: T1098.001
+      name: "Account Manipulation: Additional Cloud Credentials"
+target:
+  component: ENTRA_TENANT
+  execution_host: RUNNER
+executor:
+  type: python
+  script: scenarios/scripts/entra/add_app_secret.py
+  arguments: ["--app-object-id", "{lab_app_object_id}", "--display-name", "{run_marker}"]
+  timeout: PT5M
+  elevation_required: false
+inputs:
+  lab_app_object_id:
+    description: Object ID of the dedicated lab application (from local inventory).
+    type: string
+run_marker:
+  placement: object_description
+  template: "HDV-{run_id}"
+safety:
+  impact: medium
+  destructive: false
+  reversible: true
+  requires_manual_approval: false
+  allowed_environments: [lab]
+  preconditions:
+    - Runner pre-flight confirms the Graph token tenant ID equals the lab tenant ID in the local inventory.
+    - The target application is tagged as an HDV lab object.
+required_permissions:
+  - plane: microsoft_graph
+    permission: Application.ReadWrite.OwnedBy
+    justification: Scenario identity owns only the lab application; cannot modify other apps.
+cleanup:
+  required: true
+  executor:
+    type: python
+    script: scenarios/scripts/entra/remove_app_secret.py
+    arguments: ["--app-object-id", "{lab_app_object_id}", "--display-name", "{run_marker}"]
+    timeout: PT5M
+    elevation_required: false
+  verification: Graph shows no passwordCredentials on the lab application with the run marker in displayName.
+  sweep:
+    executor:
+      type: python
+      script: scenarios/scripts/entra/sweep_app_secrets.py
+      arguments: ["--app-object-id", "{lab_app_object_id}", "--prefix", "HDV-"]
+      timeout: PT5M
+      elevation_required: false
+    selector: passwordCredentials on the lab application whose displayName starts with HDV-, from any run.
+expected_telemetry:
+  - table: AuditLogs
+    description: Successful credential management operation on the lab application.
+expected_detections:
+  - detection_id: DET-ENTRA-001
+    expected_outcome: alert

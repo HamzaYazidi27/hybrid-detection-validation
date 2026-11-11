@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # SHA-pinned GitHub Actions: Dependabot updates the SHA and the version comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+
+  # requirements-dev.in -> requirements-dev.txt (hash-locked).
+  # Verify after each update that requirements-dev.txt still contains --hash entries.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps

@@ -1,0 +1,10 @@
+# expect-error: should not be valid under
+# MALICIOUS FIXTURE: a hard-coded secret as the default of a sensitive input.
+schema_version: "1.0"
+id: SCN-AD-901
+inputs:
+  admin_password:
+    description: Password of a privileged account
+    type: string
+    sensitive: true
+    default: fixture-value-not-a-real-secret

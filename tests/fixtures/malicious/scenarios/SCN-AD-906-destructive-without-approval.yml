@@ -1,0 +1,11 @@
+# expect-error: True was expected
+# MALICIOUS FIXTURE: destructive, irreversible scenario that tries to skip manual approval.
+schema_version: "1.0"
+id: SCN-AD-906
+safety:
+  impact: high
+  destructive: true
+  reversible: false
+  requires_manual_approval: false
+  allowed_environments: [lab]
+  preconditions: ["None - this must be rejected by the schema."]

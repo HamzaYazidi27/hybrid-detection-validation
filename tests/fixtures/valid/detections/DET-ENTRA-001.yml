@@ -1,0 +1,67 @@
+# SCHEMA FIXTURE - exercises the detection schema (NRT variant, no incident) in CI.
+# NOT a validated detection and NOT deployed. The KQL has never been executed
+# against a workspace. Real detections live in detections/ from Phase 3.
+schema_version: "1.0"
+id: DET-ENTRA-001
+title: Credential added to an application or service principal
+description: >-
+  Detects a new client secret or certificate being added to an application or service
+  principal. Adversaries add credentials to existing workload identities to keep persistent,
+  MFA-independent access to the tenant.
+version: 0.1.0
+status: ready
+author: HDV project
+created: "2026-11-11"
+modified: "2026-11-11"
+severity: High
+domain: entra_id
+mitre:
+  tactics:
+    - Persistence
+    - PrivilegeEscalation
+  techniques:
+    - id: T1098.001
+      name: "Account Manipulation: Additional Cloud Credentials"
+data_sources:
+  - table: AuditLogs
+    collection: entra_diagnostic_settings
+prerequisites:
+  licensing:
+    - none
+  licensing_gates:
+    - LIC-001
+rule:
+  kind: nrt
+  sentinel_rule_id: 1d0a260c-8dbd-4f59-8174-31ab5e5f7a1e
+  query: |
+    AuditLogs
+    | where OperationName has_any ("Add service principal credentials", "Certificates and secrets management")
+    | where Result =~ "success"
+    | extend Actor = coalesce(tostring(InitiatedBy.user.userPrincipalName), tostring(InitiatedBy.app.displayName))
+    | extend TargetName = tostring(TargetResources[0].displayName)
+    | extend TargetDescription = tostring(TargetResources[0].modifiedProperties)
+    | project TimeGenerated, OperationName, Actor, TargetName, TargetDescription, CorrelationId
+  entity_mappings:
+    - entity_type: Account
+      field_mappings:
+        - identifier: FullName
+          column: Actor
+    - entity_type: CloudApplication
+      field_mappings:
+        - identifier: Name
+          column: TargetName
+  incident:
+    create: false
+tuning:
+  false_positives:
+    - Planned secret rotation performed by an administrator or an automation account.
+validation:
+  scenarios:
+    - SCN-ENTRA-001
+  correlation:
+    strategy: run_marker
+    marker_columns:
+      - TargetDescription
+  timeout: PT45M
+references:
+  - https://attack.mitre.org/techniques/T1098/001/

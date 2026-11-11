@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:hdv:schema:scenario:1.0",
+  "title": "HDV Attack Scenario",
+  "description": "A controlled, reversible adversary-emulation scenario executed ONLY in the isolated project lab, plus the expectations used to compute a PASS / FAIL / INCONCLUSIVE verdict. Semantic rules (cross-references, placeholders, MITRE consistency, file naming) are enforced by tools/validate_content.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "description",
+    "version",
+    "status",
+    "author",
+    "created",
+    "modified",
+    "domain",
+    "mitre",
+    "target",
+    "executor",
+    "run_marker",
+    "safety",
+    "required_permissions",
+    "cleanup",
+    "expected_telemetry",
+    "expected_detections"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "id": {
+      "$ref": "#/$defs/scenario_id"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 5000
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "description": "AUTHORING lifecycle. draft: being written, never executed. reviewed: safety review done, eligible for execution. retired: no longer executed.",
+      "enum": ["draft", "reviewed", "retired"]
+    },
+    "author": {
+      "type": "string",
+      "minLength": 2
+    },
+    "created": {
+      "type": "string",
+      "format": "date"
+    },
+    "modified": {
+      "type": "string",
+      "format": "date"
+    },
+    "domain": {
+      "enum": ["active_directory", "entra_id", "hybrid_identity", "azure_control_plane"]
+    },
+    "mitre": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["techniques"],
+      "properties": {
+        "techniques": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    "target": {
+      "description": "Logical lab components. Real hostnames, IPs and tenant IDs live in an untracked local inventory file, never in the repository. WEC01 is the optional WEF collector (ADR-0011).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "execution_host"],
+      "properties": {
+        "component": {
+          "description": "Component whose telemetry should show the activity.",
+          "$ref": "#/$defs/component"
+        },
+        "execution_host": {
+          "description": "Where the scenario code runs. RUNNER = the machine running the validation CLI.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/component"
+            },
+            {
+              "const": "RUNNER"
+            }
+          ]
+        }
+      }
+    },
+    "executor": {
+      "$ref": "#/$defs/executor"
+    },
+    "inputs": {
+      "description": "Parameters passed to the executor as {name} placeholders. Values come from the local inventory, a secret store or the CLI. Sensitive inputs can never have a default (no secrets in the repository). The names run_id and run_marker are reserved.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "not": {
+          "enum": ["run_id", "run_marker"]
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "type"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 5
+          },
+          "type": {
+            "enum": ["string", "integer", "boolean"]
+          },
+          "default": {
+            "type": ["string", "integer", "boolean"]
+          },
+          "sensitive": {
+            "description": "If true, the value is never logged or persisted and must not have a default.",
+            "type": "boolean"
+          }
+        },
+        "if": {
+          "required": ["sensitive"],
+          "properties": {
+            "sensitive": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "not": {
+            "required": ["default"]
+          }
+        }
+      }
+    },
+    "run_marker": {
+      "description": "Unique per-run token injected into the activity so telemetry and alerts can be attributed to THIS run, and so the sweeper can find leftovers. Template must start with HDV- and contain {run_id} exactly once, using only safe characters.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placement"],
+      "properties": {
+        "placement": {
+          "enum": ["command_line", "object_name", "object_description", "user_agent", "none"]
+        },
+        "template": {
+          "type": "string",
+          "pattern": "^HDV-[A-Za-z0-9_.-]*\\{run_id\\}[A-Za-z0-9_.-]*$",
+          "maxLength": 64
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "placement": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["template"]
+          }
+        }
+      ]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["impact", "destructive", "reversible", "requires_manual_approval", "allowed_environments", "preconditions"],
+      "properties": {
+        "impact": {
+          "enum": ["low", "medium", "high"]
+        },
+        "destructive": {
+          "description": "Deletes or irreversibly modifies data/configuration.",
+          "type": "boolean"
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "requires_manual_approval": {
+          "type": "boolean"
+        },
+        "allowed_environments": {
+          "description": "Only the isolated project lab is ever allowed.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "const": "lab"
+          }
+        },
+        "rate_limit": {
+          "description": "Upper bound on attempts, mandatory for brute-force (T1110.*) scenarios.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_attempts", "per"],
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "per": {
+              "$ref": "#/$defs/duration"
+            }
+          }
+        },
+        "preconditions": {
+          "description": "Conditions the runner or operator must verify before execution.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "destructive": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "impact": {
+                    "const": "high"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "reversible": {
+                    "const": false
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "requires_manual_approval": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "required_permissions": {
+      "description": "Least privilege needed by the identity executing the scenario.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plane", "permission"],
+        "properties": {
+          "plane": {
+            "enum": ["active_directory", "local_windows", "entra_directory_role", "microsoft_graph", "azure_rbac"]
+          },
+          "permission": {
+            "type": "string",
+            "minLength": 3
+          },
+          "justification": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cleanup": {
+      "description": "Per-run cleanup plus an idempotent sweep. If cleanup fails, the runner marks the lab DIRTY and blocks further scenarios until a successful sweep or a recorded manual recovery (ADR-0013). This behaviour is not configurable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "justification": {
+          "description": "Mandatory when cleanup is not required: explain why no artefact is left behind.",
+          "type": "string",
+          "minLength": 20
+        },
+        "executor": {
+          "$ref": "#/$defs/executor"
+        },
+        "verification": {
+          "description": "How to confirm cleanup succeeded.",
+          "type": "string",
+          "minLength": 10
+        },
+        "sweep": {
+          "description": "Idempotent sweep that finds and removes ALL leftovers of this scenario (any run), typically by the HDV- marker prefix. Running it twice must find nothing the second time.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["executor", "selector"],
+          "properties": {
+            "executor": {
+              "$ref": "#/$defs/executor"
+            },
+            "selector": {
+              "description": "What the sweep matches, e.g. 'passwordCredentials on the lab application whose displayName starts with HDV-'.",
+              "type": "string",
+              "minLength": 15
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": ["executor", "verification", "sweep"]
+          },
+          "else": {
+            "required": ["justification"]
+          }
+        }
+      ]
+    },
+    "expected_telemetry": {
+      "description": "Raw evidence the activity must produce (verdict layer L1).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["table", "description"],
+        "properties": {
+          "table": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10
+          },
+          "event_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        }
+      }
+    },
+    "expected_detections": {
+      "description": "Detections this scenario should (alert) or should not (no_alert, negative test) trigger. References must be bidirectional.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["detection_id", "expected_outcome"],
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "pattern": "^DET-(AD|ENTRA|HYB|AZ)-[0-9]{3}$"
+          },
+          "expected_outcome": {
+            "enum": ["alert", "no_alert"]
+          },
+          "timeout": {
+            "description": "Overrides the detection's validation.timeout for this scenario.",
+            "$ref": "#/$defs/duration"
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^https://"
+      }
+    }
+  },
+  "$defs": {
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^SCN-(AD|ENTRA|HYB|AZ)-[0-9]{3}$"
+    },
+    "component": {
+      "enum": ["DC01", "SYNC01", "WS01", "WEC01", "ENTRA_TENANT", "AZURE_SUBSCRIPTION"]
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+S)?)?$"
+    },
+    "script_path": {
+      "description": "Repository-relative path under scenarios/scripts/. No parent traversal, no absolute paths.",
+      "type": "string",
+      "pattern": "^scenarios/scripts/(?!.*\\.\\.)[A-Za-z0-9_./-]+\\.(ps1|py|sh)$"
+    },
+    "argument": {
+      "description": "Arguments are passed as an argument vector (never through a shell). Shell metacharacters and newlines are rejected as defence in depth. {name} placeholders must reference declared inputs or the reserved run_id / run_marker.",
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[^;&|`$<>\\r\\n]*$"
+    },
+    "executor": {
+      "type": "object",
+      "required": ["type", "timeout", "elevation_required"],
+      "properties": {
+        "type": {
+          "enum": ["invoke_atomic", "powershell", "python", "azure_cli"]
+        },
+        "timeout": {
+          "$ref": "#/$defs/duration"
+        },
+        "elevation_required": {
+          "type": "boolean"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "invoke_atomic"
+            },
+            "timeout": true,
+            "elevation_required": true,
+            "atomic": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["technique", "test_guid", "art_commit"],
+              "properties": {
+                "technique": {
+                  "type": "string",
+                  "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
+                },
+                "test_guid": {
+                  "description": "Atomic Red Team test GUID, copied from the pinned atomics YAML.",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                },
+                "art_commit": {
+                  "description": "Pinned atomic-red-team git commit SHA (supply-chain control).",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
+              }
+            }
+          },
+          "required": ["atomic"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": ["powershell", "python", "azure_cli"]
+            },
+            "timeout": true,
+            "elevation_required": true,
+            "script": {
+              "$ref": "#/$defs/script_path"
+            },
+            "arguments": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/argument"
+              }
+            }
+          },
+          "required": ["script"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

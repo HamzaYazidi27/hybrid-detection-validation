@@ -1,0 +1,4 @@
+# expect-error: YAML parse error
+# MALICIOUS FIXTURE: arbitrary object construction / code execution via an unsafe YAML loader.
+# The hardened SafeLoader must refuse the tag; nothing is ever executed.
+id: !!python/object/apply:os.system ["echo HDV-fixture-must-never-run"]

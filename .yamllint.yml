@@ -1,0 +1,22 @@
+---
+extends: default
+
+ignore: |
+  .venv/
+  venv/
+  .terraform/
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  document-start: disable
+  truthy:
+    # Only true/false are booleans. Prevents YAML 1.1 surprises ("on", "yes", "no").
+    allowed-values: ["true", "false"]
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: consistent

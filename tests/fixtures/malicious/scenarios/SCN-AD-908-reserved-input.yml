@@ -1,0 +1,8 @@
+# expect-error: should not be valid under
+# MALICIOUS FIXTURE: input named like a reserved placeholder to spoof the run identifier.
+schema_version: "1.0"
+id: SCN-AD-908
+inputs:
+  run_id:
+    description: Attacker-controlled run identifier
+    type: string

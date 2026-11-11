@@ -1,0 +1,4 @@
+# expect-error: does not match
+# MALICIOUS FIXTURE: identifier spoofing with a Cyrillic 'Е' (U+0415) instead of Latin 'E'.
+schema_version: "1.0"
+id: "DЕT-AD-903"

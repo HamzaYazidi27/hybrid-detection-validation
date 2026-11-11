@@ -1,0 +1,8 @@
+# Normalise line endings in the repository; check out Windows scripts with CRLF.
+* text=auto eol=lf
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.png  binary
+*.jpg  binary
+*.pfx  binary

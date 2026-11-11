@@ -1,0 +1,26 @@
+# gitleaks configuration: default rules plus project-specific rules.
+# Run locally:  gitleaks dir --config .gitleaks.toml --redact .
+title = "hybrid-detection-validation"
+
+[extend]
+useDefault = true
+
+# Private key material and certificates must never be committed (Entra Connect application
+# certificates, Arc onboarding credentials, scenario identity certificates).
+[[rules]]
+id = "hdv-private-key-block"
+description = "PEM private key block"
+regex = '''-----BEGIN ((RSA|EC|DSA|OPENSSH|ENCRYPTED) )?PRIVATE KEY-----'''
+keywords = ["private key"]
+
+[[rules]]
+id = "hdv-pkcs12-base64"
+description = "Base64-encoded PKCS#12 / PFX blob"
+regex = '''MII[A-Za-z0-9+/]{1000,}={0,2}'''
+
+# Azure / Entra client secrets in scenario inputs or config files.
+[[rules]]
+id = "hdv-entra-client-secret"
+description = "Entra application client secret"
+regex = '''(?i)(client[_-]?secret|clientsecret)\s*[:=]\s*['"]?[A-Za-z0-9~._-]{30,}'''
+keywords = ["secret"]

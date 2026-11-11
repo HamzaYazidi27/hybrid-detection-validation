@@ -1,0 +1,93 @@
+# Static validation and secret scanning. No cloud credentials, no OIDC, no Azure access.
+# OIDC-authenticated jobs are introduced in Phase 5 in a SEPARATE workflow, bound to a
+# protected GitHub environment (see docs/architecture.md, section 6).
+#
+# Triggers: pull requests (all branches), pushes to main, manual dispatch on any branch.
+# Pushes to feature branches are covered by their pull request, which avoids duplicate runs.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  content:
+    name: Lint, schemas, content and unit tests (Python 3.12)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install hash-locked dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes -r requirements-dev.txt
+
+      - name: YAML lint
+        run: yamllint --strict .
+
+      - name: JSON syntax
+        run: |
+          set -euo pipefail
+          for f in schemas/*.json tools/data/*.json; do
+            python -m json.tool "$f" > /dev/null
+            echo "ok: $f"
+          done
+
+      - name: Workflow lint (actionlint)
+        run: actionlint
+
+      - name: Validate detections and scenarios
+        run: python tools/validate_content.py
+
+      - name: Unit tests (includes PowerShell tests when pwsh is available)
+        run: |
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' || echo "pwsh not available: PowerShell tests will be skipped"
+          python -m pytest -q -p no:cacheprovider tests
+
+  secrets:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.25"
+          cache: false
+
+      # go install verifies module integrity against the Go checksum database (sum.golang.org).
+      - name: Install gitleaks v8.30.1
+        run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
+
+      - name: Scan git history
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" git --config .gitleaks.toml --redact --no-banner --exit-code 1 .
+
+      - name: Scan working tree
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" dir --config .gitleaks.toml --redact --no-banner --exit-code 1 .

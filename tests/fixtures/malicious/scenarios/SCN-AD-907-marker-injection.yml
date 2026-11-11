@@ -1,0 +1,7 @@
+# expect-error: does not match
+# MALICIOUS FIXTURE: run marker template carrying a shell payload.
+schema_version: "1.0"
+id: SCN-AD-907
+run_marker:
+  placement: command_line
+  template: "HDV-{run_id};rm -rf /"

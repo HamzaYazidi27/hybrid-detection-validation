@@ -1,0 +1,90 @@
+# SCHEMA FIXTURE - exercises the detection schema in CI.
+# NOT a validated detection and NOT deployed. The KQL has never been executed
+# against a workspace. Real detections live in detections/ from Phase 3.
+schema_version: "1.0"
+id: DET-AD-001
+title: Kerberos service ticket requested with RC4 encryption (possible Kerberoasting)
+description: >-
+  Detects Kerberos TGS requests (event 4769) for user-based service accounts where the
+  ticket was issued with RC4-HMAC (0x17). Kerberoasting tools commonly request RC4 tickets
+  because they are faster to crack offline than AES tickets.
+version: 0.1.0
+status: ready
+author: HDV project
+created: "2026-11-11"
+modified: "2026-11-11"
+severity: Medium
+domain: active_directory
+mitre:
+  tactics:
+    - CredentialAccess
+  techniques:
+    - id: T1558.003
+      name: "Steal or Forge Kerberos Tickets: Kerberoasting"
+data_sources:
+  - table: SecurityEvent
+    collection: ama_windows_security_events
+    event_ids: [4769]
+    notes: DC01 Security log via AMA (Arc) or via the WEF collector (ADR-0011).
+prerequisites:
+  licensing:
+    - none
+  audit_policy:
+    - "Audit Kerberos Service Ticket Operations: Success and Failure (DC01)"
+rule:
+  kind: scheduled
+  sentinel_rule_id: 4da72db3-5353-4dd9-a0a5-8bfb5d69a5e4
+  query: |
+    SecurityEvent
+    | where EventID == 4769
+    | where TicketEncryptionType == "0x17"
+    | where ServiceName !endswith "$" and ServiceName !~ "krbtgt"
+    | where TargetUserName !endswith "$"
+    | summarize RequestCount = count(), Services = make_set(ServiceName, 50),
+        FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+        by TargetUserName, IpAddress, Computer
+  query_frequency: PT5M
+  query_period: PT10M
+  trigger:
+    operator: GreaterThan
+    threshold: 0
+  entity_mappings:
+    - entity_type: Account
+      field_mappings:
+        - identifier: Name
+          column: TargetUserName
+    - entity_type: IP
+      field_mappings:
+        - identifier: Address
+          column: IpAddress
+    - entity_type: Host
+      field_mappings:
+        - identifier: HostName
+          column: Computer
+  custom_details:
+    RequestCount: RequestCount
+    Services: Services
+  incident:
+    create: true
+    grouping:
+      enabled: true
+      lookback: PT1H
+      matching_method: AllEntities
+tuning:
+  false_positives:
+    - Legacy applications or appliances that only support RC4 Kerberos encryption.
+    - Service accounts whose msDS-SupportedEncryptionTypes still allows RC4.
+  exclusions:
+    - description: Computer accounts (names ending in $) are excluded.
+      rationale: Computer account passwords are long and random; offline cracking is not practical.
+validation:
+  scenarios:
+    - SCN-AD-001
+  correlation:
+    strategy: entity_and_time_window
+  timeout: PT30M
+  incident:
+    expected: true
+    timeout: PT45M
+references:
+  - https://attack.mitre.org/techniques/T1558/003/

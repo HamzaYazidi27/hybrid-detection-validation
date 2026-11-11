@@ -1,0 +1,8 @@
+# Direct development / CI dependencies. Compile the hash-locked requirements-dev.txt with:
+#   uv pip compile --generate-hashes --python-version 3.12 --universal requirements-dev.in -o requirements-dev.txt
+# CI installs with: pip install --require-hashes -r requirements-dev.txt
+PyYAML==6.0.3
+jsonschema==4.26.0
+pytest==9.2.0
+yamllint==1.38.0
+actionlint-py==1.7.7.23

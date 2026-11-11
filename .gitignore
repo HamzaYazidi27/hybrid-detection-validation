@@ -1,0 +1,67 @@
+# --- Secrets and local configuration (never commit) ---------------------------
+.env
+.env.*
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.p12
+*.jks
+*.snk
+*.publishsettings
+lab.local.yml
+config/*.local.yml
+
+# --- Terraform -----------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfplan
+
+# --- Validation engine local state (lab state, run lock) --------------------------
+/.hdv/
+
+# --- Validation runtime output (may contain tenant IDs, UPNs, hostnames) -------
+/results/
+/reports/output/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Python --------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# --- Entra Connect exports (contain tenant/forest details; review before commit)
+Applied-SynchronizationPolicy-*.json
+ADSyncConfig-export/
+Exported-ServerConfiguration-*/
+
+# --- OS / editor ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

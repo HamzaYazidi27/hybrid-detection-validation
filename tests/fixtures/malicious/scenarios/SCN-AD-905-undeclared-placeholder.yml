@@ -1,0 +1,10 @@
+# expect-error: undeclared placeholder '{admin_password}'
+# MALICIOUS FIXTURE: placeholder that would pull an undeclared (possibly sensitive) value.
+schema_version: "1.0"
+id: SCN-AD-905
+executor:
+  type: powershell
+  script: scenarios/scripts/ad/Request-LabServiceTicket.ps1
+  arguments: ["-Password", "{admin_password}"]
+  timeout: PT1M
+  elevation_required: false

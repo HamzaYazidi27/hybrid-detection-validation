@@ -1,0 +1,9 @@
+# expect-error: licensing gate LIC-001 must be listed
+# EVASIVE FIXTURE: depends on AuditLogs (unresolved licensing on Free) without declaring the gate.
+schema_version: "1.0"
+id: DET-AD-905
+data_sources:
+  - table: AuditLogs
+    collection: entra_diagnostic_settings
+prerequisites:
+  licensing: [none]

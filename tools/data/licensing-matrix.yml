@@ -1,0 +1,172 @@
+# Licensing matrix for Log Analytics / Sentinel ingestion of the tables used by detections.
+# Used by tools/validate_content.py: every table referenced in detections/ must be listed here.
+#
+# status:
+#   documented  - export requirement stated in official Microsoft documentation (see sources).
+#   inferred    - not stated for export; inferred from portal availability. Needs an empirical test.
+#   unresolved  - official sources conflict or are silent. Needs an empirical test.
+# Any status other than "documented" MUST carry a gate. A detection that depends on a gated
+# table must list that gate in prerequisites.licensing_gates (an explicit MVP licensing gate).
+#
+# portal: availability in the Entra admin center (separate from Log Analytics export).
+# Sources were read on 2026-11-11 from Microsoft's documentation source repositories:
+#   ENTRA_LIC  https://learn.microsoft.com/entra/identity/monitoring-health/howto-access-activity-logs
+#              (include docs/includes/licensing-monitoring-health.md, MicrosoftDocs/entra-docs@5909f44)
+#   ENTRA_RET  https://learn.microsoft.com/entra/identity/monitoring-health/reference-reports-data-retention
+#   ENTRA_LA   https://learn.microsoft.com/entra/identity/monitoring-health/howto-analyze-activity-logs-log-analytics
+#   ENTRA_INT  https://learn.microsoft.com/entra/identity/monitoring-health/howto-integrate-activity-logs-with-azure-monitor-logs
+#   SENT_EID   Azure/Azure-Sentinel@c056d24 Solutions/Microsoft Entra ID/Data Connectors/template_AzureActiveDirectory.JSON
+#   SENT_IDP   Azure/Azure-Sentinel@c056d24 Solutions/Microsoft Entra ID Protection/Data Connectors/
+#              template_AzureActiveDirectoryIdentityProtection.JSON
+#   IDP        https://learn.microsoft.com/entra/id-protection/overview-identity-protection
+#   AMA        https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-overview
+schema_version: "1.0"
+
+licences:
+  - none
+  - entra_id_p1
+  - entra_id_p2
+  - entra_workload_id_premium
+  - defender_for_identity
+  - defender_for_endpoint
+
+# A declared licence also satisfies the licences it implies.
+implies:
+  entra_id_p2: [entra_id_p1]
+
+gates:
+  LIC-001:
+    question: Can an Entra ID Free tenant export AuditLogs to a Log Analytics workspace via diagnostic settings?
+    why: >-
+      ENTRA_INT lists no licence prerequisite and SENT_EID flags only sign-in logs,
+      but ENTRA_LA lists a P1/P2 tenant as a prerequisite.
+    method: >-
+      On the Free lab tenant, create a diagnostic setting with the AuditLogs category;
+      perform a benign directory change; query AuditLogs after 60 minutes.
+    result: not run
+  LIC-002:
+    question: Can an Entra ID Free tenant export AADNonInteractiveUserSignInLogs?
+    why: SENT_EID shows the P1/P2 notice only on the interactive SignInLogs data type; no statement for this category.
+    method: Attempt to enable the category on the Free tenant; record whether it can be selected and whether rows arrive.
+    result: not run
+  LIC-003:
+    question: Can an Entra ID Free tenant export AADServicePrincipalSignInLogs?
+    why: Same as LIC-002. Required by the hybrid detection on the Entra Connect application identity.
+    method: Attempt to enable the category on the Free tenant; trigger a sync cycle; query for the Connect application sign-in.
+    result: not run
+  LIC-004:
+    question: Can an Entra ID Free tenant export AADManagedIdentitySignInLogs?
+    why: Same as LIC-002.
+    method: Attempt to enable the category on the Free tenant; record the outcome.
+    result: not run
+  LIC-005:
+    question: Is AADProvisioningLogs export available without P1/P2?
+    why: ENTRA_LIC marks provisioning logs as not available on Free; export behaviour is inferred, not stated.
+    method: Attempt to enable the category on the Free tenant; record the outcome.
+    result: not run
+  LIC-006:
+    question: Is MicrosoftGraphActivityLogs export available without P1/P2?
+    why: ENTRA_LIC and ENTRA_RET state Graph activity logs are available only with P1/P2; export behaviour inferred.
+    method: Attempt to enable the category on the Free tenant; record the outcome.
+    result: not run
+
+tables:
+  SecurityEvent:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (Windows Security log)
+    sources: [AMA]
+  Event:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (Windows event logs)
+    sources: [AMA]
+  WindowsEvent:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (Windows forwarded events via a WEF collector)
+    sources: [AMA]
+  Heartbeat:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a
+    sources: [AMA]
+  AzureActivity:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (Azure subscription activity log)
+    sources: [AMA]
+  SecurityAlert:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (written by Sentinel)
+    sources: []
+  SecurityIncident:
+    status: documented
+    export_requires_any: [none]
+    portal: n/a (written by Sentinel)
+    sources: []
+  AuditLogs:
+    status: unresolved
+    export_requires_any: [none]
+    gate: LIC-001
+    portal: "Free: yes (7 days). P1/P2: yes (30 days)"
+    sources: [ENTRA_LIC, ENTRA_RET, ENTRA_INT, ENTRA_LA, SENT_EID]
+  SigninLogs:
+    status: documented
+    export_requires_any: [entra_id_p1]
+    portal: "Free: yes (7 days). P1/P2: yes (30 days)"
+    note: Viewing sign-ins in the portal is available on Free; exporting interactive sign-in data requires P1 or P2 (SENT_EID).
+    sources: [ENTRA_LIC, ENTRA_RET, SENT_EID]
+  AADNonInteractiveUserSignInLogs:
+    status: unresolved
+    export_requires_any: [none]
+    gate: LIC-002
+    portal: "Free: sign-in logs yes (7 days)"
+    sources: [ENTRA_LIC, SENT_EID]
+  AADServicePrincipalSignInLogs:
+    status: unresolved
+    export_requires_any: [none]
+    gate: LIC-003
+    portal: "Free: sign-in logs yes (7 days)"
+    sources: [ENTRA_LIC, SENT_EID]
+  AADManagedIdentitySignInLogs:
+    status: unresolved
+    export_requires_any: [none]
+    gate: LIC-004
+    portal: "Free: sign-in logs yes (7 days)"
+    sources: [ENTRA_LIC, SENT_EID]
+  AADProvisioningLogs:
+    status: inferred
+    export_requires_any: [entra_id_p1]
+    gate: LIC-005
+    portal: "Free: no. P1/P2: yes"
+    sources: [ENTRA_LIC]
+  MicrosoftGraphActivityLogs:
+    status: inferred
+    export_requires_any: [entra_id_p1]
+    gate: LIC-006
+    portal: "Free: no. P1/P2: yes"
+    sources: [ENTRA_LIC, ENTRA_RET]
+  AADRiskyUsers:
+    status: documented
+    export_requires_any: [entra_id_p1]
+    portal: "Free/P1: limited (medium/high risk only, no details). P2: full"
+    note: The Sentinel connector declares P1/P2. Full-fidelity risk data requires P2 (IDP); detections relying on risk detail should declare entra_id_p2.
+    sources: [SENT_IDP, IDP]
+  AADUserRiskEvents:
+    status: documented
+    export_requires_any: [entra_id_p1]
+    portal: "Free: no. P1: limited. P2: full"
+    note: Same as AADRiskyUsers.
+    sources: [SENT_IDP, IDP]
+  AADRiskyServicePrincipals:
+    status: documented
+    export_requires_any: [entra_workload_id_premium]
+    portal: Workload Identities Premium required
+    sources: [IDP]
+  AADServicePrincipalRiskEvents:
+    status: documented
+    export_requires_any: [entra_workload_id_premium]
+    portal: Workload Identities Premium required
+    sources: [IDP]

@@ -1,0 +1,542 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:hdv:schema:detection:1.0",
+  "title": "HDV Detection",
+  "description": "A detection rule for Microsoft Sentinel plus the metadata required to deploy, tune and continuously validate it. One file per detection. Semantic rules that JSON Schema cannot express (duration ranges, licensing matrix, MITRE ATT&CK consistency, cross-references, file naming) are enforced by tools/validate_content.py. Detection MATURITY is never declared here: it is derived from verdict evidence (ADR-0014).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "description",
+    "version",
+    "status",
+    "author",
+    "created",
+    "modified",
+    "severity",
+    "domain",
+    "mitre",
+    "data_sources",
+    "prerequisites",
+    "rule",
+    "tuning",
+    "validation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "id": {
+      "description": "Stable project identifier. DET-<domain>-<nnn>. Never reused, even after deprecation.",
+      "type": "string",
+      "pattern": "^DET-(AD|ENTRA|HYB|AZ)-[0-9]{3}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 120
+    },
+    "description": {
+      "description": "What the rule detects and why it matters. Becomes the Sentinel rule description.",
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 5000
+    },
+    "version": {
+      "description": "Semantic version of the detection content. Maturity evidence is tracked per version.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "description": "AUTHORING lifecycle only. draft: being written. ready: complete and eligible for validation runs. deprecated: kept for history, not deployed. Maturity (unvalidated / validated / stable / failing / regressed) is derived from evidence, never declared.",
+      "enum": ["draft", "ready", "deprecated"]
+    },
+    "author": {
+      "type": "string",
+      "minLength": 2
+    },
+    "created": {
+      "type": "string",
+      "format": "date"
+    },
+    "modified": {
+      "type": "string",
+      "format": "date"
+    },
+    "severity": {
+      "description": "Microsoft Sentinel alert severity.",
+      "enum": ["Informational", "Low", "Medium", "High"]
+    },
+    "domain": {
+      "$ref": "#/$defs/domain"
+    },
+    "mitre": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tactics", "techniques"],
+      "properties": {
+        "tactics": {
+          "description": "Tactic names as accepted by the Sentinel analytics rule API. Each must belong to at least one declared technique (pinned ATT&CK data in tools/data/attack-enterprise.json).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "Reconnaissance",
+              "ResourceDevelopment",
+              "InitialAccess",
+              "Execution",
+              "Persistence",
+              "PrivilegeEscalation",
+              "DefenseEvasion",
+              "CredentialAccess",
+              "Discovery",
+              "LateralMovement",
+              "Collection",
+              "CommandAndControl",
+              "Exfiltration",
+              "Impact"
+            ]
+          }
+        },
+        "techniques": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/technique"
+          }
+        }
+      }
+    },
+    "data_sources": {
+      "description": "Tables the query depends on. Used for licensing checks and pre-flight telemetry health checks (verdict layer L1). Every table must exist in tools/data/licensing-matrix.yml.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["table", "collection"],
+        "properties": {
+          "table": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+          },
+          "collection": {
+            "description": "How the table is populated in this lab. ama_wef_forwarded_events = Windows Event Forwarding to a collector that runs AMA (ADR-0011 fallback when Tier 0 machines are not Arc-connected).",
+            "enum": [
+              "ama_windows_security_events",
+              "ama_windows_event_log",
+              "ama_wef_forwarded_events",
+              "entra_diagnostic_settings",
+              "azure_activity_diagnostic_settings",
+              "sentinel_internal"
+            ]
+          },
+          "event_ids": {
+            "description": "Windows event IDs required (Windows sources only).",
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "prerequisites": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["licensing"],
+      "properties": {
+        "licensing": {
+          "description": "Licences required for the telemetry this rule needs. Checked against tools/data/licensing-matrix.yml. 'none' means no licence beyond the Azure subscription and any Entra ID tier.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "none",
+              "entra_id_p1",
+              "entra_id_p2",
+              "entra_workload_id_premium",
+              "defender_for_identity",
+              "defender_for_endpoint"
+            ]
+          }
+        },
+        "licensing_gates": {
+          "description": "Open empirical licensing tests (LIC-nnn) this detection depends on. Required for every data source whose licensing status is not 'documented'. Until the gate is closed, validation results are INCONCLUSIVE (LICENSING_GATE_OPEN).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^LIC-[0-9]{3}$"
+          }
+        },
+        "audit_policy": {
+          "description": "Windows Advanced Audit Policy subcategories and SACLs that must be configured, e.g. 'Audit Kerberos Service Ticket Operations: Success'.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 5
+          }
+        },
+        "other": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 5
+          }
+        }
+      }
+    },
+    "rule": {
+      "$ref": "#/$defs/rule"
+    },
+    "tuning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["false_positives"],
+      "properties": {
+        "false_positives": {
+          "description": "Known benign causes. Must be non-empty: 'none known' is not an acceptable engineering answer.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 10
+          }
+        },
+        "exclusions": {
+          "description": "Exclusions implemented in the query and why they are safe.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "rationale"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 5
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 10
+              }
+            }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarios", "correlation", "timeout"],
+      "properties": {
+        "scenarios": {
+          "description": "Scenario IDs that exercise this detection. References must be bidirectional. At least one is required once status is 'ready'.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/scenario_id"
+          }
+        },
+        "correlation": {
+          "description": "How the validation engine ties an alert to a specific scenario run.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy"],
+          "properties": {
+            "strategy": {
+              "enum": ["run_marker", "entity_and_time_window", "time_window_only"]
+            },
+            "marker_columns": {
+              "description": "Result columns in which the run marker is expected to appear (strategy run_marker).",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            },
+            "justification": {
+              "description": "Mandatory for time_window_only: why neither a run marker nor entities can attribute the alert.",
+              "type": "string",
+              "minLength": 30
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "strategy": {
+                    "const": "run_marker"
+                  }
+                }
+              },
+              "then": {
+                "required": ["marker_columns"]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "strategy": {
+                    "const": "time_window_only"
+                  }
+                }
+              },
+              "then": {
+                "required": ["justification"]
+              }
+            }
+          ]
+        },
+        "timeout": {
+          "description": "Maximum time from scenario end to expected alert (PT5M..P1D). ISO 8601 duration.",
+          "$ref": "#/$defs/duration"
+        },
+        "incident": {
+          "description": "Incident validation is SEPARATE from alert validation (ADR-0006/0008). If expected, an incident containing the alert must appear before the timeout; the result is reported as a separate incident check and never changes the alert verdict.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expected"],
+          "properties": {
+            "expected": {
+              "type": "boolean"
+            },
+            "timeout": {
+              "$ref": "#/$defs/duration"
+            }
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^https://"
+      }
+    }
+  },
+  "$defs": {
+    "domain": {
+      "enum": ["active_directory", "entra_id", "hybrid_identity", "azure_control_plane"]
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^SCN-(AD|ENTRA|HYB|AZ)-[0-9]{3}$"
+    },
+    "technique": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "description": "MITRE ATT&CK Enterprise technique or sub-technique ID. Must exist and must not be revoked or deprecated in the pinned ATT&CK release.",
+          "type": "string",
+          "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
+        },
+        "name": {
+          "description": "ATT&CK name, either the technique name or the 'Parent: Sub-technique' display name.",
+          "type": "string",
+          "minLength": 3
+        }
+      }
+    },
+    "duration": {
+      "description": "ISO 8601 duration restricted to days/hours/minutes/seconds, e.g. PT5M, PT1H, P1D, P1DT12H.",
+      "type": "string",
+      "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+S)?)?$"
+    },
+    "entity_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_type", "field_mappings"],
+      "properties": {
+        "entity_type": {
+          "enum": [
+            "Account",
+            "Host",
+            "IP",
+            "Process",
+            "File",
+            "FileHash",
+            "URL",
+            "DNS",
+            "AzureResource",
+            "CloudApplication",
+            "SecurityGroup",
+            "RegistryKey",
+            "RegistryValue",
+            "Mailbox"
+          ]
+        },
+        "field_mappings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["identifier", "column"],
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "minLength": 2
+              },
+              "column": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sentinel_rule_id", "query", "entity_mappings", "incident"],
+      "properties": {
+        "kind": {
+          "description": "scheduled: Sentinel scheduled analytics rule. nrt: near-real-time rule (no frequency/period).",
+          "enum": ["scheduled", "nrt"]
+        },
+        "sentinel_rule_id": {
+          "description": "Stable GUID used as the Sentinel alert rule resource name, so redeployments update instead of duplicating.",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "query": {
+          "description": "KQL query. Length is checked by the validator; syntax is NOT checked in Phase 0.",
+          "type": "string",
+          "minLength": 10
+        },
+        "query_frequency": {
+          "$ref": "#/$defs/duration"
+        },
+        "query_period": {
+          "$ref": "#/$defs/duration"
+        },
+        "trigger": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "threshold"],
+          "properties": {
+            "operator": {
+              "enum": ["GreaterThan", "LessThan", "Equal", "NotEqual"]
+            },
+            "threshold": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "suppression": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "duration"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "duration": {
+              "$ref": "#/$defs/duration"
+            }
+          }
+        },
+        "entity_mappings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/entity_mapping"
+          }
+        },
+        "custom_details": {
+          "description": "Alert custom details: key -> result column.",
+          "type": "object",
+          "maxProperties": 20,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        },
+        "incident": {
+          "description": "Explicit incident-creation setting of the analytics rule. Alert validation does not depend on it. Note: in workspaces onboarded to the Defender portal, alerts from rules with incident creation disabled are not shown in the Defender portal (they remain in SecurityAlert); grouping settings are advisory there.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["create"],
+          "properties": {
+            "create": {
+              "type": "boolean"
+            },
+            "grouping": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["enabled"],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "lookback": {
+                  "$ref": "#/$defs/duration"
+                },
+                "matching_method": {
+                  "enum": ["AllEntities", "AnyAlert", "Selected"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "scheduled"
+              }
+            }
+          },
+          "then": {
+            "required": ["query_frequency", "query_period", "trigger"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "nrt"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["query_frequency"]
+                },
+                {
+                  "required": ["query_period"]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

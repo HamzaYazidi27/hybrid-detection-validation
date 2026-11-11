@@ -1,0 +1,70 @@
+# SCHEMA FIXTURE - exercises the scenario schema in CI.
+# NOT executed. The referenced scripts do not exist yet (Phase 4).
+schema_version: "1.0"
+id: SCN-AD-001
+title: Request RC4 service tickets for a lab SPN account
+description: >-
+  From the domain workstation, a low-privilege lab user requests Kerberos service tickets
+  for a dedicated lab service account that has an SPN and allows RC4. No ticket is cracked
+  and no hash is written to disk.
+version: 0.1.0
+status: draft
+author: HDV project
+created: "2026-11-11"
+modified: "2026-11-11"
+domain: active_directory
+mitre:
+  techniques:
+    - id: T1558.003
+      name: "Steal or Forge Kerberos Tickets: Kerberoasting"
+target:
+  component: DC01
+  execution_host: WS01
+executor:
+  type: powershell
+  script: scenarios/scripts/ad/Request-LabServiceTicket.ps1
+  arguments: ["-ServiceAccount", "{spn_account}"]
+  timeout: PT5M
+  elevation_required: false
+inputs:
+  spn_account:
+    description: sAMAccountName of the dedicated lab SPN account (from local inventory).
+    type: string
+run_marker:
+  placement: none
+safety:
+  impact: low
+  destructive: false
+  reversible: true
+  requires_manual_approval: false
+  allowed_environments: [lab]
+  preconditions:
+    - Runner pre-flight confirms the AD domain matches the lab domain in the local inventory.
+    - The SPN account is a dedicated lab account in the HDV test OU.
+required_permissions:
+  - plane: active_directory
+    permission: Authenticated domain user (no extra rights)
+cleanup:
+  required: true
+  executor:
+    type: powershell
+    script: scenarios/scripts/ad/Clear-LabTicketCache.ps1
+    arguments: ["-ServiceAccount", "{spn_account}"]
+    timeout: PT2M
+    elevation_required: false
+  verification: klist on WS01 shows no tickets for the lab SPN account.
+  sweep:
+    executor:
+      type: powershell
+      script: scenarios/scripts/ad/Invoke-KerberoastSweep.ps1
+      arguments: ["-ServiceAccount", "{spn_account}"]
+      timeout: PT2M
+      elevation_required: false
+    selector: Cached Kerberos service tickets for the lab SPN account on WS01, from any run.
+expected_telemetry:
+  - table: SecurityEvent
+    description: 4769 on DC01 for the lab SPN account with TicketEncryptionType 0x17.
+    event_ids: [4769]
+expected_detections:
+  - detection_id: DET-AD-001
+    expected_outcome: alert
