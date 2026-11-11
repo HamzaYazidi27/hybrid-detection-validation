@@ -83,7 +83,7 @@ alerts tested.
 - KQL parse check in CI (`Kusto.Language`);
 - watchlists for DCs and Entra Connect;
 - rule deployment from YAML (approved, manual);
-- verification of the Sentinel tactic mapping for ATT&CK v20.
+- verification of the Sentinel tactic mapping for ATT&CK's Stealth / Defense Impairment tactics.
 
 **Exit criteria:** each detection fires on a documented manual reproduction. Status moves from
 `draft` to `ready`. Maturity stays **unvalidated** until Phase 4 evidence exists.

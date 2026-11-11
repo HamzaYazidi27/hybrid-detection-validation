@@ -192,14 +192,34 @@ validator/hdv/      Validation engine (safety core implemented; rest Phase 4)
 docs/               Architecture, network, DCSync design, threat model, safety, ADRs, roadmap
 ```
 
-## 8. Key open questions
+## 8. Unresolved decisions and open verifications
 
-| # | Question | Blocks | Owner |
+### 8.1 Decisions only the owner can make
+
+| # | Decision | Blocks | Recommendation |
 |---|---|---|---|
-| Q1 | Repository public or private? | ADR-0009, report handling | Owner |
-| Q2 | Is there a lab management host for the CLI? | Phase 4 | Owner |
-| Q3 | Dedicated Tier 0 subscription available? | Direct AMA vs WEF ([ADR-0011](adr/0011-tier0-arc-isolation-wef-fallback.md)) | Owner |
-| Q4 | Entra licence state (Free / P1 / P2 / trial); results of LIC-001…006 | Entra detections | Owner + Phase 2 |
-| Q5 | vTPM available for SYNC01 on the VMware platform? | ADR-0003 hardening | Owner |
-| Q6 | Defender-portal onboarding state of the new workspace | Confirms ADR-0006 | Phase 2 |
-| Q7 | Sentinel tactic list vs ATT&CK v20 Stealth / Defense Impairment | ATT&CK mapping | Phase 3 |
+| D1 | Repository public or private? | ADR-0009 option B; report handling; licence timing | Private until a licence is chosen and reports are proven sanitised |
+| D2 | Project licence | Making the repository public | Owner's choice. Third-party ATT&CK terms already in `THIRD_PARTY_NOTICES.md` |
+| D3 | Scenario execution path ([ADR-0009](adr/0009-scenario-execution-path.md), Proposed) | Phase 4 (gate G-EXEC) | Option A: dedicated MGMT VM, operator-run |
+| D4 | Host resources for MGMT (about 2 vCPU / 4 GB) and FW01 (1–2 vCPU / 1–2 GB) | Phase 2 | — |
+| D5 | Dedicated Tier 0 subscription? | Direct AMA vs WEF (gate G-T0, [ADR-0011](adr/0011-tier0-arc-isolation-wef-fallback.md)) | WEF via WEC01 unless a dedicated subscription is easy to obtain |
+| D6 | Entra licence state and trial timing (Sentinel 31 days, Entra P2 30 days) | Entra/hybrid detections; trial value | Start both trials in the same week as Phase 2 onboarding |
+| D7 | vTPM for SYNC01 on the VMware platform | [ADR-0003](adr/0003-entra-connect-sync-dedicated-member-server.md) hardening | Enable if supported; otherwise record the residual risk |
+| D8 | Enable Password Hash Sync? | Realistic hybrid scenarios; DCSync tuning | Yes, for the lab |
+| D9 | Firewall distribution for FW01 and the lab IP plan | Phase 2 | Any maintained open-source firewall; static plan recorded in the local inventory |
+| D10 | Azure region, Terraform state backend, monthly budget amount | Phase 1 | — |
+| D11 | SECURITY.md / CODEOWNERS | Public release | Add with the licence decision |
+
+### 8.2 Technical verifications (no owner decision needed)
+
+| # | Item | When |
+|---|---|---|
+| V1 | Licensing gates LIC-001…006 on the lab tenant | Phase 2 (gate G-LIC) |
+| V2 | Defender-portal behaviours and onboarding state of the new workspace (seen only in search excerpts) | Phase 2 |
+| V3 | Sentinel trial terms and free data sources (search excerpts); per-GB price for the chosen region | Before Phase 1 apply |
+| V4 | Sentinel tactic names vs ATT&CK's Stealth / Defense Impairment | Phase 3 |
+| V5 | `azcmagent config get --json` output shape; VMware shared-folder `.vmx` keys; 4662 `ObjectType` XPath format; `SecurityEvent` column names used by the DCSync sketch | Phase 2–3 |
+| V6 | WEF configuration steps; `WindowsEvent` volume and latency | Phase 2 |
+| V7 | Arc agent behaviour after snapshot restore; Entra Connect certificate recovery procedure | Phase 2 |
+| V8 | Sentinel suppression and grouping-lookback limits | Phase 3 |
+| V9 | First CI run on GitHub; gitleaks history scan with real commits; Dependabot with the uv-generated hash file; a pinnable PSScriptAnalyzer version | First pull request |

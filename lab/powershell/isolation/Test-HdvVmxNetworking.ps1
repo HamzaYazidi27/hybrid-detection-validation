@@ -8,13 +8,16 @@
       I1a  no virtual NIC uses bridged networking;
       I1b  every NIC of a lab VM is attached to a lab-only custom network (for example VMnet10);
       I1c  the firewall VM FW01 has exactly one lab NIC and at most one WAN NIC (NAT);
+      I1d  VMware shared folders (a host-guest channel that bypasses FW01) are not enabled,
+           except on VMs listed in -SharedFoldersAllowedVmx (normally MGMT, for exports only);
       I2   (Windows host, optional) the host has NO virtual adapter on the lab network.
 
     A NIC without an explicit connectionType is a FAIL: do not rely on VMware defaults.
     Results: PASS, FAIL or MANUAL (cannot be checked automatically; verify by hand).
     Exit code: 0 all PASS, 1 any FAIL, 2 no FAIL but MANUAL items remain.
 
-    STATUS: written in Phase 0. Tested only against synthetic .vmx files.
+    STATUS: written in Phase 0. Tested only against synthetic .vmx files. The shared-folder
+    key names (sharedFolderN.enabled) must be verified against a real VMware .vmx file.
 
 .PARAMETER Path
     .vmx files or directories to scan recursively.
@@ -27,6 +30,9 @@
 
 .PARAMETER FirewallWanNetworks
     Networks FW01 may use for its WAN NIC. 'nat' means connectionType = "nat".
+
+.PARAMETER SharedFoldersAllowedVmx
+    .vmx paths of VMs allowed to have shared folders enabled (normally only MGMT, during an export).
 
 .PARAMETER CheckHostAdapter
     On Windows hosts, verify that no 'VMware Network Adapter <LabNetwork>' exists on the host.
@@ -46,6 +52,8 @@ param(
     [string] $FirewallVmx,
 
     [string[]] $FirewallWanNetworks = @('nat', 'VMnet8'),
+
+    [string[]] $SharedFoldersAllowedVmx = @(),
 
     [switch] $CheckHostAdapter
 )
@@ -74,6 +82,15 @@ function Read-VmxNics {
     }
 }
 
+function Get-EnabledSharedFolderCount {
+    param([string] $File)
+    $count = 0
+    foreach ($line in Get-Content -LiteralPath $File) {
+        if ($line -match '^\s*sharedFolder\d+\.enabled\s*=\s*"TRUE"\s*$') { $count++ }
+    }
+    return $count
+}
+
 function New-Result {
     param([string] $Check, [string] $Target, [string] $Detail, [ValidateSet('PASS', 'FAIL', 'MANUAL')] [string] $Result)
     [pscustomobject]@{ Check = $Check; Target = $Target; Detail = $Detail; Result = $Result }
@@ -82,6 +99,7 @@ function New-Result {
 $labSet = $LabNetworks | ForEach-Object { $_.ToLowerInvariant() }
 $wanSet = $FirewallWanNetworks | ForEach-Object { $_.ToLowerInvariant() }
 $firewallFull = [System.IO.Path]::GetFullPath($FirewallVmx)
+$sharedAllowed = @($SharedFoldersAllowedVmx | ForEach-Object { [System.IO.Path]::GetFullPath($_) })
 
 $files = foreach ($item in $Path) {
     if (Test-Path -LiteralPath $item -PathType Container) {
@@ -102,6 +120,16 @@ foreach ($file in $files) {
     $isFirewall = ($file -eq $firewallFull)
     $nics = @(Read-VmxNics -File $file)
     $vm = [System.IO.Path]::GetFileNameWithoutExtension($file)
+    $shared = Get-EnabledSharedFolderCount -File $file
+    if ($shared -eq 0) {
+        $results.Add((New-Result 'I1d shared folders disabled' $vm 'no enabled shared folder' 'PASS'))
+    }
+    elseif ($sharedAllowed -contains $file) {
+        $results.Add((New-Result 'I1d shared folders disabled' $vm "$shared enabled (explicitly allowed; disable after the export)" 'PASS'))
+    }
+    else {
+        $results.Add((New-Result 'I1d shared folders disabled' $vm "$shared shared folder(s) enabled: host-guest channel bypassing FW01" 'FAIL'))
+    }
     if ($nics.Count -eq 0) {
         $results.Add((New-Result 'I1 NIC inventory' $vm 'no network adapter found' 'MANUAL'))
         continue

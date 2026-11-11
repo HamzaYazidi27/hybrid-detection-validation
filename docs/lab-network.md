@@ -73,10 +73,35 @@ or FW01. Results are recorded in the lab-state attestation ([ADR-0013](adr/0013-
 
 | ID | Check | Where | How | Automated |
 |---|---|---|---|---|
-| I1 | No bridged NIC; every lab NIC on the lab network; FW01 has one LAN and at most one WAN NIC | Host | [`Test-HdvVmxNetworking.ps1`](../lab/powershell/isolation/Test-HdvVmxNetworking.ps1) parses `.vmx` files read-only | Yes |
+| I1 | No bridged NIC; every lab NIC on the lab network; FW01 has one LAN and at most one WAN NIC; VMware shared folders disabled except on explicitly allowed VMs (MGMT, see §5) | Host | [`Test-HdvVmxNetworking.ps1`](../lab/powershell/isolation/Test-HdvVmxNetworking.ps1) parses `.vmx` files read-only | Yes |
 | I2 | Host has no virtual adapter on the lab network | Host | Same script with `-CheckHostAdapter` (Windows host); otherwise manual check in the Virtual Network Editor | Partly |
 | I3 | Default route = FW01; DNS lab-internal; host LAN and other RFC1918 targets time out; Microsoft endpoints reachable on 443 | Every lab VM | [`Test-HdvLabIsolation.ps1`](../lab/powershell/isolation/Test-HdvLabIsolation.ps1), read-only | Yes |
 | I4 | FW01 configuration reviewed: rule order as in §3, no port forwards, logging on rules 4 and 6 | FW01 | Export the configuration and review it; keep the export outside Git (it contains addresses) | Manual |
 | I5 | Negative evidence: FW01 log shows dropped attempts from I3 | FW01 | Inspect firewall log after running I3 | Manual |
 
 Both scripts fail closed: a check that cannot run is reported as FAIL (or MANUAL for I2), never as PASS.
+
+## 5. Operating the isolated lab (manageability)
+
+**Conclusion: the host-only network without a host adapter remains fully manageable.** It
+removes one convenience (RDP from the host into the lab) and adds no blocker. Every
+management path below either stays inside VMnet10, uses the hypervisor console, or goes out
+through FW01 on TCP 443.
+
+| Need | How it is done | Why isolation is preserved |
+|---|---|---|
+| Console access to any VM (including FW01 and DC01) | VMware console (Workstation window, or the ESXi host client) | The console is provided by the hypervisor, not by the guest network. It works even when FW01 is down |
+| Day-to-day administration | From **MGMT** ([ADR-0009](adr/0009-scenario-execution-path.md)): RDP, WinRM, RSAT and Group Policy Management to lab VMs | Traffic stays inside VMnet10 and never crosses FW01 |
+| Firewall administration | FW01 web UI from MGMT only (rule 1), or the FW01 console | No management interface on the WAN side |
+| Getting code into the lab | MGMT clones the repository from GitHub over HTTPS through FW01 | Outbound 443 only (rule 5) |
+| Packages and updates | Windows Update, PyPI, PowerShell Gallery, Arc and AMA downloads over HTTPS | Outbound 443 only |
+| Name resolution and time | DC01 serves DNS to the lab and forwards through FW01; DC01 syncs time through FW01 (rules 2–3) | Named destinations only |
+| Addressing | FW01 serves DHCP on VMnet10, or static addresses; VMware DHCP stays disabled | VMware's DHCP would add a host-side service on the network |
+| Getting results out | Results contain lab identifiers and are not pushed to GitHub. Copy a sanitised report out through a **VMware shared folder enabled only on MGMT, only for the export, then disabled again** | Shared folders are a host–guest channel that bypasses FW01. That is why I1 fails on any other VM with an enabled shared folder |
+| Clipboard / drag-and-drop | Allowed on MGMT for operator convenience; disable on all other lab VMs (VM settings → Guest Isolation) | Data-only host–guest channels; checked manually, not by script |
+| FW01 broken | Repair it through its console. **Never** switch a VM to bridged or NAT as a workaround | A "temporary" bridged NIC is exactly the failure I1 exists to catch |
+
+Trade-offs accepted:
+- The owner works inside the lab through the VMware console of MGMT, not through RDP from the host.
+- Exporting results is a deliberate, manual step.
+- If FW01 is down, the lab has no internet, but it stays administrable through the console.

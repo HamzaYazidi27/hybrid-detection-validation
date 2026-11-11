@@ -45,12 +45,21 @@ TECHNIQUE_ID = re.compile(r"^T\d{4}(\.\d{3})?$")
 
 def build(bundle: dict) -> dict:
     version = None
+    released = None
+    collection_markings: list[str] = []
+    markings: dict[str, str] = {}
     techniques: dict[str, dict] = {}
     unknown_phases: set[str] = set()
 
     for obj in bundle.get("objects", []):
+        if obj.get("type") == "marking-definition":
+            statement = (obj.get("definition") or {}).get("statement")
+            if statement:
+                markings[obj["id"]] = statement
         if obj.get("type") == "x-mitre-collection":
             version = obj.get("x_mitre_version")
+            released = obj.get("modified")
+            collection_markings = obj.get("object_marking_refs") or []
         if obj.get("type") != "attack-pattern":
             continue
         ext = next(
@@ -92,6 +101,9 @@ def build(bundle: dict) -> dict:
         raise SystemExit(f"unmapped ATT&CK phases (update PHASE_TO_SENTINEL): {sorted(unknown_phases)}")
     if not version or not techniques:
         raise SystemExit("bundle does not look like an ATT&CK Enterprise STIX bundle")
+    copyright_statements = [markings[m] for m in collection_markings if m in markings]
+    if not copyright_statements:
+        raise SystemExit("bundle has no copyright marking on the collection; refusing to generate unattributed data")
 
     # Sub-technique display name "Parent: Child", as shown on attack.mitre.org.
     for tid, data in techniques.items():
@@ -99,7 +111,13 @@ def build(bundle: dict) -> dict:
             parent = techniques.get(tid.split(".")[0])
             if parent:
                 data["display_name"] = f"{parent['name']}: {data['name']}"
-    return {"attack_version": version, "techniques": dict(sorted(techniques.items()))}
+    return {
+        "attack_version": version,
+        "attack_released": released,
+        "copyright": " ".join(copyright_statements),
+        "license": "MITRE ATT&CK license; see THIRD_PARTY_NOTICES.md at the repository root",
+        "techniques": dict(sorted(techniques.items())),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

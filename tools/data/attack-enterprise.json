@@ -3,6 +3,9 @@
  "source_commit": "a8db2f52eb933c9c99060c123e088b3326d3a607",
  "source_file": "enterprise-attack/enterprise-attack-20.1.json",
  "attack_version": "20.1",
+ "attack_released": "2026-11-05T15:11:27.678Z",
+ "copyright": "Copyright 2015-2026, The MITRE Corporation. MITRE ATT&CK and ATT&CK are registered trademarks of The MITRE Corporation.",
+ "license": "MITRE ATT&CK license; see THIRD_PARTY_NOTICES.md at the repository root",
  "techniques": {
   "T1001": {
    "name": "Data Obfuscation",

@@ -184,6 +184,25 @@ def test_vmx_misconfigured_lab_vm_fails(good_lab: tuple[Path, Path], nic: dict[s
     assert result.returncode == 1 and expected in result.stdout, result.stdout + result.stderr
 
 
+def test_vmx_shared_folder_on_lab_vm_fails(good_lab: tuple[Path, Path]) -> None:
+    root, firewall = good_lab
+    vmx = root / "DC01" / "DC01.vmx"
+    vmx.write_text(vmx.read_text(encoding="utf-8") + 'sharedFolder0.present = "TRUE"\nsharedFolder0.enabled = "TRUE"\n', encoding="utf-8")
+    result = _vmx_check(root, firewall)
+    assert result.returncode == 1 and "bypassing FW01" in result.stdout, result.stdout + result.stderr
+
+
+def test_vmx_shared_folder_allowed_on_mgmt_only(good_lab: tuple[Path, Path]) -> None:
+    root, firewall = good_lab
+    mgmt = _vmx(root / "MGMT" / "MGMT.vmx", [{"connectionType": "custom", "vnet": "VMnet10"}])
+    mgmt.write_text(mgmt.read_text(encoding="utf-8") + 'sharedFolder0.enabled = "TRUE"\n', encoding="utf-8")
+    result = pwsh(
+        f"& '{VMX_CHECK}' -Path '{root}' -LabNetworks VMnet10 -FirewallVmx '{firewall}' -SharedFoldersAllowedVmx '{mgmt}' "
+        "| Format-List | Out-String -Width 200; exit $LASTEXITCODE"
+    )
+    assert result.returncode == 2 and "explicitly allowed" in result.stdout, result.stdout + result.stderr
+
+
 def test_vmx_firewall_with_two_lab_nics_fails(tmp_path: Path) -> None:
     root = tmp_path / "vms"
     firewall = _vmx(root / "FW01" / "FW01.vmx", [{"connectionType": "custom", "vnet": "VMnet10"}] * 2)

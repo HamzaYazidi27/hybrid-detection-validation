@@ -124,3 +124,5 @@ tenant, subscription and VMware network owned by the operator. Read
 ## Licence
 
 No licence has been chosen yet. The owner will decide before the repository is made public.
+Third-party material (MITRE ATT&CK data, version 20.1) is redistributed under its own terms:
+see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

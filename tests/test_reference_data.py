@@ -34,6 +34,18 @@ def test_mvp_techniques_are_current(technique: str, tactic: str) -> None:
     assert tactic in entry["tactics"]
 
 
+def test_attack_attribution_is_embedded_and_documented() -> None:
+    assert ATTACK["copyright"].startswith("Copyright") and "The MITRE Corporation" in ATTACK["copyright"]
+    assert "THIRD_PARTY_NOTICES.md" in ATTACK["license"]
+    notices = (REPO_ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    assert f"version **{ATTACK['attack_version']}**" in notices
+    assert ATTACK["source_commit"] in notices
+    assert ATTACK["source_file"] in notices
+    assert ATTACK["copyright"] in notices
+    assert "The MITRE Corporation (MITRE) hereby grants you a non-exclusive, royalty-free license" in notices
+    assert "This work is reproduced and distributed with the permission of The MITRE Corporation." in notices
+
+
 def test_revoked_technique_points_to_replacement() -> None:
     assert ATTACK["techniques"]["T1562.008"]["revoked"] is True
     assert ATTACK["techniques"]["T1562.008"]["revoked_by"] == "T1685.002"

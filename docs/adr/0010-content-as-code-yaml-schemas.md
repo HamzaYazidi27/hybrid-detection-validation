@@ -45,6 +45,7 @@ different places, these drift apart.
   untracked local inventory and a secret store at run time.
 - KQL syntax is not checked yet: there is no offline Log Analytics engine. Phase 3 adds
   `Kusto.Language` parsing; Phase 4 adds L2 execution against the workspace.
-- ATT&CK v20 split Defense Evasion into *Stealth* and *Defense Impairment*. Sentinel's tactic
+- Recent ATT&CK releases (already 19.2, the oldest checked) replace Defense Evasion with
+  *Stealth* and *Defense Impairment*. Sentinel's tactic
   list still uses `DefenseEvasion`, so the generator maps both to it. This mapping is an
   **unverified assumption** about Sentinel's current API, to be checked in Phase 3.
