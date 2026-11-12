@@ -60,7 +60,15 @@ jobs:
 
       - name: Unit tests (includes PowerShell tests when pwsh is available)
         run: |
-          pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' || echo "pwsh not available: PowerShell tests will be skipped"
+          set -euo pipefail
+          if command -v pwsh > /dev/null 2>&1; then
+            # A pwsh that is installed but broken fails this step instead of silently skipping tests
+            # (assignment, so errexit sees the exit status of pwsh).
+            pwsh_version="$(pwsh --version)"
+            echo "PowerShell found: ${pwsh_version}"
+          else
+            echo "::warning title=PowerShell tests skipped::pwsh is not installed on this runner; PowerShell tests will be skipped"
+          fi
           python -m pytest -q -p no:cacheprovider tests
 
   secrets:
