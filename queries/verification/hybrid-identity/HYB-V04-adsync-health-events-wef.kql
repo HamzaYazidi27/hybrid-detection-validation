@@ -1,0 +1,17 @@
+// id: HYB-V04
+// title: Entra Connect health events from SYNC01 (Windows Event Forwarding path)
+// module: 2.1
+// tables: WindowsEvent
+// licensing_gates: none
+// watchlists: HDV_EntraConnect
+// status: not executed
+// expected: recent "Directory Synchronization" events from the sync server; 654 = password hash sync heartbeat; 1011/1012 should be absent (certificate past 70% of lifetime / expired)
+let SyncServers = _GetWatchlist("HDV_EntraConnect") | project SyncServer = tolower(tostring(SyncServer));
+WindowsEvent
+| where TimeGenerated > ago(24h)
+| where Channel == "Application" and Provider == "Directory Synchronization"
+| extend ShortName = tolower(tostring(split(Computer, ".")[0]))
+| where ShortName in (SyncServers)
+| summarize Events = count(), LastSeen = max(TimeGenerated) by Computer, EventID
+| extend Meaning = case(EventID == 654, "PHS heartbeat", EventID == 1011, "certificate >= 70% of lifetime", EventID == 1012, "certificate EXPIRED", "")
+| order by EventID asc

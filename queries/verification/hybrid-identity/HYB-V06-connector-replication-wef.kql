@@ -1,0 +1,14 @@
+// id: HYB-V06
+// title: Replication requests by the Entra Connect connector account (Windows Event Forwarding path)
+// module: 2.1
+// tables: WindowsEvent
+// licensing_gates: none
+// watchlists: HDV_EntraConnect
+// status: not executed
+// expected: 4662 events on domain controllers whose subject is the connector account SID, proving that PHS replication is visible for the DCSync allow-list (docs/dcsync-detection-design.md)
+let ConnectorSid = toscalar(_GetWatchlist("HDV_EntraConnect") | project tostring(ConnectorSid) | take 1);
+WindowsEvent
+| where TimeGenerated > ago(1h)
+| where Channel == "Security" and EventID == 4662
+| where tostring(EventData.SubjectUserSid) == ConnectorSid
+| summarize Requests = count(), LastSeen = max(TimeGenerated) by Computer

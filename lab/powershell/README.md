@@ -19,5 +19,6 @@ CI parses every script and runs behaviour tests with fakes when `pwsh` is availa
 | `discovery/` | Read-only inventory (D1–D16) | Planned (Phase 2) |
 | `audit-policy/` | Dedicated GPO with Advanced Audit Policy + additive SACLs | Planned (Phase 2) |
 | `wef/` | WEF subscription to WEC01 | Planned (Phase 2) |
-| `entra-connect/` | Prerequisite checks, connector account permissions | Planned (Phase 2) |
-| `lab-objects/` | Lab OU, test users, SPN account | Planned (Phase 2) |
+| [`hybrid-identity/`](hybrid-identity/README.md) | Module 2.1: prerequisites, lab OUs and canaries, connector account permissions, sync scope, Connect validation, hard-match block, Entra-side validation, watchlist export | **Implemented**; tested with mocks only; not run in the lab |
+| [`common/HdvLab.psm1`](common/HdvLab.psm1) | Shared helpers (results, exit codes, configuration, OU layout) | **Implemented** |
+| `lab-objects/` | Scenario objects (SPN account, test users) beyond the 2.1 canaries | Planned (Phase 2/4) |

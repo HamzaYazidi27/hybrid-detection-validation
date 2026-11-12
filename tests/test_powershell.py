@@ -21,7 +21,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PWSH = os.environ.get("HDV_PWSH") or shutil.which("pwsh")
-SCRIPTS = sorted((REPO_ROOT / "lab" / "powershell").rglob("*.ps1"))
+SCRIPTS = sorted(p for ext in ("*.ps1", "*.psm1", "*.psd1") for p in (REPO_ROOT / "lab" / "powershell").rglob(ext))
 LOCKDOWN = REPO_ROOT / "lab" / "powershell" / "arc-onboarding" / "Set-HdvArcAgentLockdown.ps1"
 VMX_CHECK = REPO_ROOT / "lab" / "powershell" / "isolation" / "Test-HdvVmxNetworking.ps1"
 ISOLATION = REPO_ROOT / "lab" / "powershell" / "isolation" / "Test-HdvLabIsolation.ps1"

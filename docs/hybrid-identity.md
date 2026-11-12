@@ -49,9 +49,10 @@ used unless a later ADR decides otherwise.
 
 | Concern | Mechanism | Repository artefact |
 |---|---|---|
-| Prerequisite checks (OS, .NET, TLS, TPM) | Read-only PowerShell | `lab/powershell/entra-connect/` (Phase 2) |
-| Connector account + delegated permissions | `ADSyncConfig` PowerShell module, with `-WhatIf` | Script (Phase 2) |
-| Installation | Wizard, following a step-by-step runbook | `docs/runbooks/entra-connect-install.md` (Phase 2) |
+| Prerequisite checks (OS, .NET, TLS, TPM) | Read-only PowerShell | [`Test-HdvHybridPrerequisites.ps1`](../lab/powershell/hybrid-identity/Test-HdvHybridPrerequisites.ps1) (implemented, not run) |
+| Connector account + delegated permissions | `ADSyncConfig` PowerShell module, with `-WhatIf` | [`Set-HdvConnectorAccountPermissions.ps1`](../lab/powershell/hybrid-identity/Set-HdvConnectorAccountPermissions.ps1) (implemented, not run) |
+| Installation | Wizard, following a step-by-step runbook | [`docs/runbooks/entra-connect-install.md`](runbooks/entra-connect-install.md) |
+| OU filtering, validation, hardening | Wizard for OU filtering (no supported cmdlet); read-only validation scripts; Graph for the hard-match block | [Module 2.1 package](../lab/powershell/hybrid-identity/README.md) |
 | Settings export / import | Connect automatically exports `Applied-SynchronizationPolicy-*.json` to `%ProgramData%\AADConnect` whenever the wizard changes the configuration. Import is offered during a new installation; Microsoft states the exported JSON **must not be edited** for import, and an imported server starts in **staging mode** | Raw exports kept in a **protected location outside Git**. Only a reviewed, human-written change summary is committed |
 | Older servers | `MigrateSettings.ps1` (Connect `Tools` directory) exports `Exported-ServerConfiguration-*` | Outside Git |
 

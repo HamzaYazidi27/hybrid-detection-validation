@@ -9,7 +9,7 @@
 |---|---|---|
 | 0 | Foundations: design, schemas, validator, safety core, CI | **In review (revision 2)** |
 | 1 | Azure foundation (Terraform; plan only until approved) | Not started |
-| 2 | Lab isolation, onboarding, telemetry, licensing gates | Not started |
+| 2 | Lab isolation, onboarding, telemetry, licensing gates | **In progress**: Module 2.1 package implemented (mock-tested, not run); 2.2–2.4 not started |
 | 3 | Detection engineering | Not started |
 | 4 | Validation engine | Not started (safety core done in Phase 0) |
 | 5 | CI/CD with OIDC and regression | Not started |

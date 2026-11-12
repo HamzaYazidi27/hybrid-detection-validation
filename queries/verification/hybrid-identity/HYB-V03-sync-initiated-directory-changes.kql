@@ -1,0 +1,14 @@
+// id: HYB-V03
+// title: Directory changes initiated by the Entra Connect application
+// module: 2.1
+// tables: AuditLogs
+// licensing_gates: LIC-001
+// watchlists: HDV_EntraConnect
+// status: not executed
+// expected: after the first export, Add/Update user and group operations for the canary objects, initiated by the Connect application
+let ConnectAppId = toscalar(_GetWatchlist("HDV_EntraConnect") | project tostring(ConnectAppId) | take 1);
+AuditLogs
+| where TimeGenerated > ago(24h)
+| where tostring(InitiatedBy.app.appId) == ConnectAppId
+| summarize Operations = count(), LastSeen = max(TimeGenerated) by OperationName, Result
+| order by Operations desc

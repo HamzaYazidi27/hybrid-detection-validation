@@ -12,6 +12,8 @@
 *.publishsettings
 lab.local.yml
 config/*.local.yml
+*.local.psd1
+*.local.csv
 
 # --- Terraform -----------------------------------------------------------------
 .terraform/

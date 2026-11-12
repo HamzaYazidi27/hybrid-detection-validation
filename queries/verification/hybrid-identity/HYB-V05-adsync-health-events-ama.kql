@@ -1,0 +1,16 @@
+// id: HYB-V05
+// title: Entra Connect health events from SYNC01 (direct AMA path, Tier 0 subscription only)
+// module: 2.1
+// tables: Event
+// licensing_gates: none
+// watchlists: HDV_EntraConnect
+// status: not executed
+// expected: same as HYB-V04 when SYNC01 is Arc-connected inside a dedicated Tier 0 subscription (ADR-0011)
+let SyncServers = _GetWatchlist("HDV_EntraConnect") | project SyncServer = tolower(tostring(SyncServer));
+Event
+| where TimeGenerated > ago(24h)
+| where EventLog == "Application" and Source == "Directory Synchronization"
+| extend ShortName = tolower(tostring(split(Computer, ".")[0]))
+| where ShortName in (SyncServers)
+| summarize Events = count(), LastSeen = max(TimeGenerated) by Computer, EventID
+| order by EventID asc

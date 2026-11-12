@@ -1,0 +1,14 @@
+// id: HYB-V01
+// title: Entra Connect application sign-ins by source IP
+// module: 2.1
+// tables: AADServicePrincipalSignInLogs
+// licensing_gates: LIC-003
+// watchlists: HDV_EntraConnect
+// status: not executed
+// expected: successful sign-ins of the Connect application only from the lab egress IP (LabEgressIps) during the last 24 hours
+let ConnectAppId = toscalar(_GetWatchlist("HDV_EntraConnect") | project tostring(ConnectAppId) | take 1);
+AADServicePrincipalSignInLogs
+| where TimeGenerated > ago(24h)
+| where AppId == ConnectAppId
+| summarize SignIns = count(), Failures = countif(ResultType != "0"), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) by IPAddress, ResultType
+| order by LastSeen desc
