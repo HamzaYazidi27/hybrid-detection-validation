@@ -6,6 +6,7 @@
 
 ## 0. Preconditions
 
+- [ ] Lab built and gate G-NET passed ([lab-build.md](lab-build.md), stages 1–7).
 - [ ] G-NET: isolation checks I1–I5 PASS ([lab-network.md](../lab-network.md#4-isolation-readiness-checks-gate-g-net)).
 - [ ] Snapshots of DC01, SYNC01 and MGMT taken (one consistent set).
 - [ ] Lab state CLEAN; dedicated lab tenant confirmed (not a university or employer tenant).

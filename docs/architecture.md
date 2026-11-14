@@ -49,7 +49,7 @@ flowchart LR
         WEC01["WEC01<br/>WEF collector<br/>Arc + AMA (locked down)"]
         WS01["WS01 (optional)<br/>scenario origin"]
         MGMT["MGMT (proposed, ADR-0009)<br/>validation CLI + SQLite"]
-        FW01["FW01 firewall VM<br/>drop RFC1918, allow 443"]
+        FW01["FW01 firewall VM<br/>drop RFC1918, allow 443/80"]
     end
 
     subgraph ENTRA["Entra tenant (lab only)"]
@@ -94,8 +94,8 @@ Every lab VM reaches the internet only through FW01. Detailed flows are in
 
 | Plane | Component | Responsibility | Managed by | Status |
 |---|---|---|---|---|
-| Lab | FW01 | Only egress; drops RFC1918; allows TCP 443 | Firewall config + readiness checks | Planned (Phase 2); checks **implemented** |
-| Lab | DC01 | Existing AD DS DC; audit policy + SACL for detections | PowerShell (dedicated GPO) | Planned (Phase 2) |
+| Lab | FW01 | Only egress; drops RFC1918; allows TCP 443 and 80 | Firewall config + readiness checks | Planned (Phase 2); checks **implemented** |
+| Lab | DC01 | AD DS DC (existing, or built with [lab-build.md](runbooks/lab-build.md)); audit policy + SACL for detections | PowerShell (dedicated GPO) | Planned (Phase 2) |
 | Lab | SYNC01 | Entra Connect Sync ≥ 2.6.84.0, application-based authentication, vTPM recommended | Runbook + PowerShell | Planned (Phase 2) |
 | Lab | WEC01 | WEF collector (default telemetry path for Tier 0 machines) | PowerShell + Arc + AMA | Planned (Phase 2) |
 | Lab | WS01 | Realistic origin for AD attacks | PowerShell | Optional |

@@ -1,6 +1,8 @@
 # Existing Laboratory Requirements
 
-> **Principle:** reuse the existing VMware AD DS lab; **discover, never assume**. No IP address,
+> **Principle:** reuse an existing VMware AD DS lab if there is one; **discover, never assume**.
+> **No lab yet?** Build it first with [runbooks/lab-build.md](runbooks/lab-build.md), then fill in §2.
+> No IP address,
 > hostname, OS version or configuration below is assumed. The owner collects values with
 > **read-only** commands and stores them in an **untracked** local inventory (`lab.local.yml`,
 > git-ignored). Nothing in this document installs or changes anything.
@@ -10,7 +12,7 @@
 | Logical name | Role | Required | Notes |
 |---|---|---|---|
 | FW01 | Firewall VM, the lab's only egress | **Yes** | [lab-network.md](lab-network.md) |
-| DC01 | Existing domain controller (AD DS + DNS) | Yes | Real hostname mapped in the local inventory |
+| DC01 | Domain controller (AD DS + DNS), existing or built per [lab-build.md](runbooks/lab-build.md) | Yes | Real hostname mapped in the local inventory |
 | SYNC01 | Domain-joined **member** server for Entra Connect Sync | Yes | Tier 0. Must not be a DC |
 | WEC01 | Domain-joined member server, WEF collector with Arc + AMA | Yes, unless a dedicated Tier 0 subscription exists | [ADR-0011](adr/0011-tier0-arc-isolation-wef-fallback.md) |
 | WS01 | Domain-joined workstation | Recommended | Realistic origin for AD attacks |
@@ -42,8 +44,8 @@
 | VM | vCPU | RAM | Notes |
 |---|---|---|---|
 | FW01 | 1–2 | 1–2 GB | Open-source firewall distribution |
-| DC01 | 2 | 4 GB | Existing VM |
-| SYNC01 | 2 | 4–8 GB | Windows Server 2022 or 2025 recommended by Microsoft; vTPM recommended |
+| DC01 | 2 | 4 GB | Existing VM, or new (Windows Server 2025 evaluation) |
+| SYNC01 | 2 | 6–8 GB | Microsoft minimum for Entra Connect Sync: **6 GB RAM, 70 GB disk** (fewer than 50,000 objects). Windows Server 2022 or 2025, Desktop Experience; vTPM recommended |
 | WEC01 | 2 | 4 GB | Windows Server; receives forwarded events |
 | WS01 | 2 | 4 GB | Windows 10/11 Enterprise (evaluation or licensed) |
 

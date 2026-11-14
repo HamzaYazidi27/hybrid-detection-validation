@@ -16,7 +16,7 @@ It still needs HTTPS egress to Microsoft cloud endpoints (Arc, AMA, Entra Connec
   and no VMware DHCP.
 - A **dedicated firewall VM (FW01)** is the only path out: WAN on VMware NAT, LAN on the lab
   network. It drops all traffic to RFC1918, CGNAT and link-local ranges and allows TCP 443
-  egress, plus explicitly named DNS/NTP for DC01. Everything else is denied and logged.
+  and TCP 80 egress, plus explicitly named DNS/NTP for DC01. Everything else is denied and logged.
 - **Bridged networking is never used.**
 - **Isolation readiness checks I1–I5** must pass before any scenario (gate G-NET). They are
   implemented as read-only, fail-closed scripts where possible
@@ -36,3 +36,11 @@ It still needs HTTPS egress to Microsoft cloud endpoints (Arc, AMA, Entra Connec
   of Git (contains addresses).
 - The guest check treats only a timeout as "blocked", so FW01 must **drop**, not reject.
 - An FQDN allow-list is an optional hardening step, not an MVP requirement.
+
+## Amendment (2026-11-14): TCP 80 egress
+
+The original decision allowed TCP 443 only. Microsoft documents that Entra Connect needs
+outbound **HTTP (TCP 80)** to download certificate revocation lists (CRLs); Windows also uses
+HTTP for CRL and some update content. With 443 only, the Module 2.1 installation would fail.
+FW01 rule 5 therefore allows TCP 80 and 443. Exposure stays limited: rule 4 drops every private
+destination before rule 5 is evaluated, so HTTP can only reach the public internet.

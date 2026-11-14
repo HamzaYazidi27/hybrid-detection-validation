@@ -3,7 +3,8 @@
 > **Status:** design (Phase 0). Nothing has been configured in the lab. Governing decision:
 > [ADR-0012](adr/0012-lab-network-isolation.md). Readiness checks are implemented as
 > read-only scripts in [`lab/powershell/isolation/`](../lab/powershell/isolation/) and have
-> been tested only against synthetic inputs.
+> been tested only against synthetic inputs. To build the lab from nothing, follow
+> [runbooks/lab-build.md](runbooks/lab-build.md).
 
 ## 1. Why NAT alone is not isolation
 
@@ -33,7 +34,7 @@ flowchart LR
     INET(("Internet<br/>Microsoft cloud endpoints"))
 
     DC01 & SYNC01 & WS01 & WEC01 & MGMT --> FW01
-    FW01 -->|"TCP 443 egress only"| NAT --> INET
+    FW01 -->|"TCP 443 + 80 egress only"| NAT --> INET
     FW01 -. "DROP RFC1918, link-local, CGNAT" .-x LAN
 ```
 
@@ -55,7 +56,7 @@ flowchart LR
 | 2 | Allow | DC01 | FW01 LAN address, or named public resolvers | 53 | DNS forwarding for the lab domain |
 | 3 | Allow | DC01 | Named NTP servers | UDP 123 | Time source for the domain (Kerberos depends on it) |
 | 4 | **Block (drop, log)** | Lab network | 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16 | any | Host LAN and every other private network, including the VMware NAT gateway |
-| 5 | Allow | Lab network | any | TCP 443 | HTTPS egress: Arc, AMA, Entra Connect, Microsoft Graph, Windows Update |
+| 5 | Allow | Lab network | any | TCP 443, TCP 80 | Internet egress: Arc, AMA, Entra Connect, Microsoft Graph, Windows Update. TCP 80 is required for certificate revocation lists (Microsoft: Entra Connect ports); see the [ADR-0012 amendment](adr/0012-lab-network-isolation.md#amendment-2026-11-14-tcp-80-egress) |
 | 6 | **Block (log)** | any | any | any | Default deny |
 
 - Use **block (silent drop)** for rule 4, not reject. The guest check treats only a timeout as
@@ -86,7 +87,7 @@ Both scripts fail closed: a check that cannot run is reported as FAIL (or MANUAL
 **Conclusion: the host-only network without a host adapter remains fully manageable.** It
 removes one convenience (RDP from the host into the lab) and adds no blocker. Every
 management path below either stays inside VMnet10, uses the hypervisor console, or goes out
-through FW01 on TCP 443.
+through FW01 on TCP 443 (or TCP 80 for certificate revocation lists).
 
 | Need | How it is done | Why isolation is preserved |
 |---|---|---|
@@ -94,7 +95,7 @@ through FW01 on TCP 443.
 | Day-to-day administration | From **MGMT** ([ADR-0009](adr/0009-scenario-execution-path.md)): RDP, WinRM, RSAT and Group Policy Management to lab VMs | Traffic stays inside VMnet10 and never crosses FW01 |
 | Firewall administration | FW01 web UI from MGMT only (rule 1), or the FW01 console | No management interface on the WAN side |
 | Getting code into the lab | MGMT clones the repository from GitHub over HTTPS through FW01 | Outbound 443 only (rule 5) |
-| Packages and updates | Windows Update, PyPI, PowerShell Gallery, Arc and AMA downloads over HTTPS | Outbound 443 only |
+| Packages and updates | Windows Update, PyPI, PowerShell Gallery, Arc and AMA downloads over HTTPS | Outbound 443 (and 80 for CRLs) only (rule 5) |
 | Name resolution and time | DC01 serves DNS to the lab and forwards through FW01; DC01 syncs time through FW01 (rules 2–3) | Named destinations only |
 | Addressing | FW01 serves DHCP on VMnet10, or static addresses; VMware DHCP stays disabled | VMware's DHCP would add a host-side service on the network |
 | Getting results out | Results contain lab identifiers and are not pushed to GitHub. Copy a sanitised report out through a **VMware shared folder enabled only on MGMT, only for the export, then disabled again** | Shared folders are a host–guest channel that bypasses FW01. That is why I1 fails on any other VM with an enabled shared folder |

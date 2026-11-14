@@ -58,6 +58,7 @@ alerts tested.
 ## Phase 2: Lab isolation, onboarding, telemetry, licensing gates
 
 **Deliverables (in this order):**
+0. If no lab exists: build it with [runbooks/lab-build.md](runbooks/lab-build.md).
 1. FW01 and G-NET.
 2. Discovery inventory D1–D16.
 3. G-T0 decision.
